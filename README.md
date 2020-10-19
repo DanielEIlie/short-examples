@@ -10,4 +10,4 @@ Short Examples...
 - **DanielHTTP-prod-oas30-apigateway.yaml** API Gateway export in OpenAPI3 + APIGateway extensions.
 ### Usage
 Create the API by importing it, after you have replaced the <region> and <accountId> with your own details.
-ALternatively, you can create everything manually.
+Alternatively, you can create everything manually.
