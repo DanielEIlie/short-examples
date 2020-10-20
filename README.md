@@ -15,7 +15,7 @@ Create the API by importing it, after you have replaced the **region** and **acc
 3. Select the `Import from Swagger or Open API 3` and paste in the code
 4. Make sure the `Endpoint` is set to `Regional` and finalise the import.
 
-Alternatively, you can create everything manually through the console by reading the article on Medium
+Alternatively, you can create everything manually through the console by reading my article on [Medium](https://medium.com/@daniel.ilie0)
 
 ### Invocations
 
