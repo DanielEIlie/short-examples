@@ -1,0 +1,80 @@
+openapi: "3.0.1"
+info:
+  title: "DanielHTTP"
+  description: "Error Handling"
+  version: "2020-10-18T19:46:01Z"
+servers:
+- url: "https://apiapi.execute-api.<region>.amazonaws.com/{basePath}"
+  variables:
+    basePath:
+      default: "/prod"
+paths:
+  /guid:
+    post:
+      parameters:
+      - name: "GUID"
+        in: "query"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        400:
+          description: "400 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        200:
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+        502:
+          description: "502 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-amazon-apigateway-request-validator: "Validate query string parameters and\
+        \ headers"
+      x-amazon-apigateway-integration:
+        uri: "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:<accountId>:function:DanielHTTP/invocations"
+        responses:
+          default:
+            statusCode: "200"
+            responseTemplates:
+              application/json: "#set($inputRoot = $input.path('$'))\n$input.json(\"\
+                $\")\n#if($inputRoot.toString().contains(\"stackTrace\"))\n#set($context.responseOverride.status\
+                \ = 500)\n#end"
+          .*Error.*:
+            statusCode: "400"
+            responseTemplates:
+              application/json: "{\n    \"errorMessage\": $input.path('$.errorMessage')\n\
+                }"
+          .*Exception.*:
+            statusCode: "502"
+            responseTemplates:
+              application/json: "{\n    \"errorMessage\": $input.path('$.errorMessage')\n\
+                }"
+        requestTemplates:
+          application/json: "{\n  \"GUID\":\"$input.params('GUID')\"\n}"
+        passthroughBehavior: "when_no_templates"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws"
+components:
+  schemas:
+    Empty:
+      title: "Empty Schema"
+      type: "object"
+    Error:
+      title: "Error Schema"
+      type: "object"
+      properties:
+        message:
+          type: "string"
+x-amazon-apigateway-request-validators:
+  Validate query string parameters and headers:
+    validateRequestParameters: true
+    validateRequestBody: false
