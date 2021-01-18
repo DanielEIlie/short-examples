@@ -1,9 +1,4 @@
 ## Integrating API Gateway - Lambda Responses
-
-[[_TOC_]]
-
-### Location
-/APIG-Lambda
 ### Contents
 - **lambda_function.py** lambda function code in Python
 - **DanielHTTP.yaml** SAM (serverless application model) template
