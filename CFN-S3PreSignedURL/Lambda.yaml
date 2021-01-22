@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "This template creates all Lambda Functions"
+Parameters:
+  CostCenter:
+    Type: String
+    Description: "The name of the CostCenter"
+  S3CodeBucket:
+    Type: String
+    Description: "The name of the bucket with the source code"
+
+Resources:
+  LambdaExceptionsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        S3Bucket: !Ref S3CodeBucket
+        S3Key: "Lambda/LambdaExceptions.zip"
+      Description: Lambda Exceptions Layer
+      LayerName: !Sub LambdaExceptions-${CostCenter}
+
+  LambdaCreateS3PreSignedURL:
+    DependsOn:
+      - LambdaExceptionsLayer
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: !Sub "LambdaCreateS3PreSignedURL-${CostCenter}"
+      Description: "Issues a presigned URL for S3."
+      Runtime: "python3.8"
+      Role:
+        Fn::ImportValue:
+          !Sub "${CostCenter}-shared-RoleLambdaCreateS3PreSignedURLArn"
+      Handler: "LambdaCreateS3PreSignedURL.lambda_handler"
+      MemorySize: 128
+      Timeout: 600
+      Layers:
+        - !Ref LambdaExceptionsLayer
+      Environment:
+        Variables:
+          COSTCENTER: !Ref CostCenter
+          REGION: !Ref "AWS::Region"
+          SNSALERT:
+            Fn::ImportValue:
+              !Sub "${CostCenter}-shared-SNSNotifyMe"
+          TIMELIMIT: 60
+      Code:
+        S3Bucket: !Ref S3CodeBucket
+        S3Key: "Lambda/Functions/LambdaCreateS3PreSignedURL.zip"
+      Tags:
+        - Key: "CostCenter"
+          Value: !Ref CostCenter
+
+  LambdaCreateS3PreSignedURLInitialVersion:
+    DependsOn: LambdaCreateS3PreSignedURL
+    Type: AWS::Lambda::Version
+    Properties:
+      Description: Initial lambda version
+      FunctionName: !Ref LambdaCreateS3PreSignedURL
+
+  LambdaCreateS3PreSignedURLProdAlias:
+    DependsOn: LambdaCreateS3PreSignedURL
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref LambdaCreateS3PreSignedURL
+      FunctionVersion: !GetAtt LambdaCreateS3PreSignedURLInitialVersion.Version
+      Name: PROD
+
+  LambdaCreateS3PreSignedURLDevelAlias:
+    DependsOn: LambdaCreateS3PreSignedURL
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref LambdaCreateS3PreSignedURL
+      FunctionVersion: $LATEST
+      Name: DEVEL
+
+  LambdaCreateS3PreSignedURLConfigLatest:
+    DependsOn: LambdaCreateS3PreSignedURL
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref LambdaCreateS3PreSignedURL
+      MaximumRetryAttempts: 0
+      Qualifier: $LATEST
+
+  LambdaCreateS3PreSignedURLConfigProd:
+    DependsOn: LambdaCreateS3PreSignedURLProdAlias
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref LambdaCreateS3PreSignedURL
+      MaximumRetryAttempts: 0
+      Qualifier: PROD
+
+  LambdaCreateS3PreSignedURLConfigDevel:
+    DependsOn: LambdaCreateS3PreSignedURLDevelAlias
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref LambdaCreateS3PreSignedURL
+      MaximumRetryAttempts: 0
+      Qualifier: DEVEL
+
+Outputs:
+  LambdaCreateS3PreSignedURLArn:
+      Description: "LambdaCreateS3PreSignedURL Arn"
+      Value: !GetAtt LambdaCreateS3PreSignedURL.Arn
+      Export:
+        Name: !Sub ${CostCenter}-shared-LambdaCreateS3PreSignedURLArn

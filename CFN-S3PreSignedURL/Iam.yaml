@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "This template creates all of the necessary IAM resources"
+Parameters:
+  CostCenter:
+    Type: String
+    Description: "The name of the CostCenter"
+
+Resources:
+  PolicyS3StagingArea:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "S3StagingArea.${CostCenter}"
+      Description: "Staging Area Type Policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "VisualEditor0"
+            Effect: "Allow"
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${CostCenter}-shared-S3StagingAreaArn
+              - !Join
+                  - ""
+                  - - Fn::ImportValue:
+                        !Sub ${CostCenter}-shared-S3StagingAreaArn
+                    - "/*"
+
+  PolicySNSNotifyMe:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "PolicySNSNotifyMe.${CostCenter}"
+      Description: "Allows publishing notification topic"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action:
+              - "sns:Publish"
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${CostCenter}-shared-SNSNotifyMe
+
+  RoleLambdaCreateS3PreSignedURL:
+    DependsOn:
+      - "PolicyS3StagingArea"
+      - "PolicySNSNotifyMe"
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "RoleLambdaCreateS3PreSignedURL.${CostCenter}"
+      Description: "Lambda can issue S3 PreSigned URL"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref "PolicyS3StagingArea"
+        - !Ref "PolicySNSNotifyMe"
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Tags:
+        - Key: CostCenter
+          Value: !Ref CostCenter
+
+Outputs:
+  RoleLambdaCreateS3PreSignedURLArn:
+    Description: "RoleLambdaCreateS3PreSignedURL Arn"
+    Value: !GetAtt RoleLambdaCreateS3PreSignedURL.Arn
+    Export:
+      Name: !Sub ${CostCenter}-shared-RoleLambdaCreateS3PreSignedURLArn

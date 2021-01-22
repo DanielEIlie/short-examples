@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Root Stack"
+Parameters: 
+  ContactEmail:
+    Type: String
+    Description: "Contact e-mail"
+  CostCenter:
+    Type: String
+    Description: "The name of the CostCenter"
+  Name:
+    Type: String
+    Description: "The name of this stack"
+  S3CFNURL:
+    Type: String
+    Description: "S3 CFN URL - exclude /Start.yaml"
+  S3CodeBucket:
+    Type: String
+    Description: "The name of the bucket with the source code"
+
+Resources:
+  S3:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${S3CFNURL}/S3.yaml
+      Parameters:
+        CostCenter: !Ref CostCenter
+
+  SNS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${S3CFNURL}/SNS.yaml
+      Parameters:
+        ContactEmail: !Ref ContactEmail
+        CostCenter: !Ref CostCenter
+
+  Iam:
+    DependsOn:
+      - S3
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${S3CFNURL}/Iam.yaml
+      Parameters:
+        CostCenter: !Ref CostCenter
+
+  Lambda:
+    DependsOn:
+      - S3
+      - Iam
+      - SNS
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${S3CFNURL}/Lambda.yaml
+      Parameters:
+        CostCenter: !Ref CostCenter
+        S3CodeBucket: !Ref S3CodeBucket
+
+  APIGateway:
+    DependsOn:
+      - Lambda
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${S3CFNURL}/APIGateway.yaml
+      Parameters:
+        CostCenter: !Ref CostCenter

@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "This template creates all SNS Topics"
+Parameters:
+  ContactEmail:
+    Type: String
+    Description: "Contact e-mail"
+  CostCenter:
+    Type: String
+    Description: "The name of the CostCenter"
+
+Resources:
+  SNSNotifyMe:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: !Sub "SNS-Notify-Me-${CostCenter}"
+      TopicName: !Sub "SNS-Email-my-account-${CostCenter}"
+
+  SNSNotifyMePolicy:
+    DependsOn: SNSNotifyMe
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "__default_statement_ID"
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - "SNS:GetTopicAttributes"
+              - "SNS:SetTopicAttributes"
+              - "SNS:AddPermission"
+              - "SNS:RemovePermission"
+              - "SNS:DeleteTopic"
+              - "SNS:Subscribe"
+              - "SNS:ListSubscriptionsByTopic"
+              - "SNS:Publish"
+              - "SNS:Receive"
+            Resource:
+              - Ref: SNSNotifyMe
+            Condition:
+              StringEquals:
+                "AWS:SourceOwner": !Ref "AWS::AccountId"
+      Topics:
+        - Ref: SNSNotifyMe
+
+  SNSNotifyMeSubscription:
+    DependsOn: SNSNotifyMe
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref ContactEmail
+      Protocol: email
+      TopicArn: !Ref SNSNotifyMe
+
+Outputs:
+  SNSNotifyMeArn:
+    Description: "SNSNotifyMe Arn"
+    Value: !Ref SNSNotifyMe
+    Export:
+      Name: !Sub ${CostCenter}-shared-SNSNotifyMe

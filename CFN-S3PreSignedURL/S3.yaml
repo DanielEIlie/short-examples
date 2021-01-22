@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "This template creates the necessary S3 buckets"
+Parameters:
+  CostCenter:
+    Type: String
+    Description: "The name of the CostCenter"
+
+Resources:
+  S3StagingArea:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub staging.area.${CostCenter}
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOlderThan14Days
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 14
+            ExpirationInDays: 14
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: CostCenter
+          Value: !Ref CostCenter
+
+  S3StagingAreaPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3StagingArea
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "PreventAccidentalDeletionOfBucket"
+            Action: "s3:DeleteBucket"
+            Effect: "Deny"
+            Resource: !GetAtt S3StagingArea.Arn
+            Principal: "*"
+
+Outputs:
+  S3StagingAreaArn:
+    Description: "Staging Area Bucket"
+    Value: !GetAtt S3StagingArea.Arn
+    Export:
+      Name: !Sub ${CostCenter}-shared-S3StagingAreaArn
+
+  S3StagingAreaBucket:
+    Value: !Ref S3StagingArea
+    Export:
+      Name: !Sub ${CostCenter}-shared-S3StagingAreaBucket
+
+  S3StagingAreaURL:
+    Value: !Join ["", ["https://", !GetAtt S3StagingArea.DomainName]]
+    Export:
+      Name: !Sub ${CostCenter}-shared-S3StagingAreaURL
